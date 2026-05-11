@@ -2,7 +2,7 @@
   "name": "skillplay-server",
   "version": "1.0.0",
   "description": "SkillPlay Backend API",
-  "main": "src/index.ts",
+  "main": "server/src/index.ts",
   "scripts": {
     "start": "node -r ts-node/register src/index.ts",
     "build": "tsc",
