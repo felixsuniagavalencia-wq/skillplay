@@ -12,18 +12,17 @@ export function adjustMultiplier(difficulty: string, current: number, avgAccurac
 
   const range = { min: 60, max: 85 };
 
-  if (avg > range.max) {
-    const delta = Math.min((avg - range.max) / 100, 0.3);
+  if (avgAccuracy > range.max) {
+    const delta = Math.min((avgAccuracy - range.max) / 100, 0.3);
     const raw = current * (1 + delta);
     return Math.min(Math.max(Math.round(raw * 10) / 10, limits.min), limits.max);
   }
 
-  if (avg < range.min) {
-    const delta = Math.min((range.min - avg) / 100, 0.2);
+  if (avgAccuracy < range.min) {
+    const delta = Math.min((range.min - avgAccuracy) / 100, 0.2);
     const raw = current * (1 - delta);
     return Math.min(Math.max(Math.round(raw * 10) / 10, limits.min), limits.max);
   }
 
   return current;
 }
-
