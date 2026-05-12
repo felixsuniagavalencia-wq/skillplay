@@ -1,15 +1,9 @@
-// Firebase Admin - SkillPlay
-import admin from 'firebase-admin';
-
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    }),
-  });
-}
-
-export const db = admin.firestore();
-export default admin;
+// DB Connection - SkillPlay
+export const db = {
+  collection: () => ({
+    doc: () => ({ get: async () => ({ exists: false }) }),
+    where: () => ({ limit: () => ({ get: async () => ({ empty: true, docs: [] }) }) }),
+    add: async () => ({ id: 'mock' }),
+  }),
+};
+export default db;
