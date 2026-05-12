@@ -28,7 +28,7 @@ export async function createPayout(userId: string, amount: number, iban: string,
       amount: Math.round(amount * 100), // Convertir a centavos
       currency: 'eur',
       destination: iban,
-      description: Payout para ,
+      description: `Payout para ${accountName}`,
     });
 
     // Actualizar balance
@@ -49,4 +49,3 @@ export async function createPayout(userId: string, amount: number, iban: string,
 }
 
 export default stripe;
-

@@ -12,7 +12,7 @@ router.post('/email-tracking', async (req, res) => {
   const events = Array.isArray(req.body) ? req.body : [req.body];
   if (events.length === 0) return;
 
-  console.log([emailTracking]  eventos recibidos);
+  console.log(`[emailTracking] ${events.length} eventos recibidos`);
 
   try {
     for (const { email, event: eventType, url, reason } of events) {
@@ -24,7 +24,7 @@ router.post('/email-tracking', async (req, res) => {
         .get();
 
       if (snap.empty) {
-        console.warn([emailTracking] Email no encontrado: );
+        console.warn(`[emailTracking] Email no encontrado: ${email}`);
         continue;
       }
 
@@ -43,7 +43,7 @@ router.post('/email-tracking', async (req, res) => {
           break;
         case 'bounce':
         case 'dropped':
-          await ref.update({ status: 'rejected', rejectReason: reason ?? email_ });
+          await ref.update({ status: 'rejected', rejectReason: reason ?? 'unknown' });
           break;
         case 'unsubscribe':
           await ref.update({ status: 'rejected', rejectReason: 'unsubscribed' });
@@ -54,7 +54,7 @@ router.post('/email-tracking', async (req, res) => {
       }
     }
 
-    console.log([emailTracking]  eventos procesados);
+    console.log(`[emailTracking] ${events.length} eventos procesados`);
   } catch (err) {
     console.error('[emailTracking] Error:', err);
   }
@@ -70,4 +70,3 @@ router.get('/email-tracking/health', async (_req, res) => {
 });
 
 export default router;
-

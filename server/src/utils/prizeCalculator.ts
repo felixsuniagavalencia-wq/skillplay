@@ -23,7 +23,7 @@ export function getMultipliers(): any {
 export function invalidateMultiplierCache(): void {
   MULTIPLIER_CACHE = null;
   CACHE_EXPIRES_AT = 0;
-  console.log([] Multiplier cache invalidated);
+  console.log(`[prizeCalculator] Multiplier cache invalidated`);
 }
 
 export function calculatePrize(entryFee: number, difficulty: string, correctAnswers: number, totalQuestions: number): number {
@@ -34,4 +34,3 @@ export function calculatePrize(entryFee: number, difficulty: string, correctAnsw
   const basePrize = entryFee * multiplier * accuracy;
   return Math.round(basePrize * 100) / 100;
 }
-
