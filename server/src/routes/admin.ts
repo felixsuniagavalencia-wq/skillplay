@@ -1,6 +1,6 @@
 // Admin Routes - SkillPlay
 import { Router } from 'express';
-import { db } from '../firebase-admin';
+import { db } from '../db';
 import { invalidateMultiplierCache } from '../utils/prizeCalculator';
 
 const router = Router();
@@ -44,4 +44,3 @@ router.post('/fund/adjust', async (req, res) => {
 });
 
 export default router;
-

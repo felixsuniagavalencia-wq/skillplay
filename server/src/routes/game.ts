@@ -1,6 +1,6 @@
 // Game Routes - SkillPlay
 import { Router } from 'express';
-import { db } from '../../firebase-admin';
+import { db } from '../../db';
 
 const router = Router();
 
@@ -17,7 +17,7 @@ router.post('/submit', async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
 
-    // Calcular precisión
+    // Calcular precisiÃ³n
     const verifiedAnswers = answers.map((a: any) => ({
       ...a,
       isCorrect: a.selected === a.correct
@@ -36,7 +36,7 @@ router.post('/submit', async (req, res) => {
       return res.json({
         prize: 0,
         status: 'under_review',
-        message: 'Tu sesión está siendo verificada por seguridad.'
+        message: 'Tu sesiÃ³n estÃ¡ siendo verificada por seguridad.'
       });
     }
 
@@ -63,4 +63,3 @@ router.post('/submit', async (req, res) => {
 });
 
 export default router;
-

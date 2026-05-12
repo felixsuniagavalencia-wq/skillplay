@@ -1,6 +1,6 @@
 // Email Tracking Webhook - SkillPlay
 import { Router } from 'express';
-import { db } from '../../firebase-admin';
+import { db } from '../../db';
 
 const router = Router();
 

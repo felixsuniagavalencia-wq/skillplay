@@ -1,7 +1,7 @@
 // Wallet Routes - SkillPlay
 import { Router } from 'express';
 import { createPayout } from '../services/stripeService';
-import { db } from '../../firebase-admin';
+import { db } from '../../db';
 
 const router = Router();
 
@@ -25,7 +25,7 @@ router.post('/withdraw', async (req, res) => {
     // Crear payout
     const result = await createPayout(userId, amount, iban, accountName);
     
-    // Registrar transacción
+    // Registrar transacciÃ³n
     await db.collection('transactions').add({
       userId,
       type: 'withdrawal',
@@ -48,7 +48,7 @@ router.post('/withdraw', async (req, res) => {
     if (err.message?.includes('STRIPE_ONBOARDING_REQUIRED')) {
       return res.status(402).json({
         error: 'stripe_onboarding_required',
-        message: 'Tu cuenta de Stripe necesita verificación adicional.',
+        message: 'Tu cuenta de Stripe necesita verificaciÃ³n adicional.',
       });
     }
 
@@ -57,4 +57,3 @@ router.post('/withdraw', async (req, res) => {
 });
 
 export default router;
-

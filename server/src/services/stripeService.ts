@@ -1,6 +1,6 @@
 // Stripe Service - SkillPlay
 import Stripe from 'stripe';
-import { db } from '../firebase-admin';
+import { db } from '../db';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2023-10-16',

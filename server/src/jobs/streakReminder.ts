@@ -1,5 +1,5 @@
 // Streak Reminder Job - SkillPlay
-import { db } from '../firebase-admin';
+import { db } from '../db';
 
 export async function sendStreakReminders() {
   const twentyHoursAgo = new Date(Date.now() - 20 * 60 * 60 * 1000);
