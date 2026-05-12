@@ -25,13 +25,12 @@ export async function sendStreakReminders() {
     }
   }
 
-  console.log([streakReminder]  usuarios para notificar);
+  console.log(`[streakReminder] ${toNotify.length} usuarios para notificar`);
 
   for (const { userId, streak } of toNotify) {
-    // Aquí iría la lógica de envío de push notification
-    console.log(  ? Notificar a : racha de  en riesgo);
+    // AquÃ­ irÃ­a la lÃ³gica de envÃ­o de push notification
+    console.log(`  â†’ Notificar a ${userId}: racha de ${streak} en riesgo`);
   }
 
   return toNotify.length;
 }
-
