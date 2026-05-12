@@ -1,7 +1,7 @@
 // Wallet Routes - SkillPlay
 import { Router } from 'express';
 import { createPayout } from '../services/stripeService';
-import { db } from '../../db';
+import { db } from '../db';
 
 const router = Router();
 
