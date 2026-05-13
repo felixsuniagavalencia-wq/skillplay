@@ -33,7 +33,7 @@ router.post('/generate', async (req, res) => {
 
     const prompt = `Genera 5 preguntas de trivia en español sobre "${category}" con dificultad "${difficulty}".
     
-Responde SOLO con JSON válido, sin texto adicional:
+Responde SOLO con JSON válido, sin texto adicional, sin markdown, sin backticks:
 {
   "questions": [
     {
@@ -58,7 +58,8 @@ El campo "correct" es el índice (0-3) de la opción correcta.`;
       throw new Error('Respuesta inesperada de Claude');
     }
 
-    const parsed = JSON.parse(content.text);
+    const rawText = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(rawText);
 
     // Crear sesión en Firestore
     const sessionRef = db.collection('games').doc();
@@ -101,7 +102,6 @@ router.post('/submit', async (req, res) => {
     const data = session.data()!;
     const questions = data.questions;
 
-    // Verificar respuestas
     const verifiedAnswers = answers.map((a: any, i: number) => ({
       ...a,
       isCorrect: a.selected === questions[i].correct,
@@ -111,27 +111,22 @@ router.post('/submit', async (req, res) => {
     const correct = verifiedAnswers.filter((a: any) => a.isCorrect).length;
     const accuracy = correct / questions.length;
 
-    // Shadow ban si precisión > 98%
     if (accuracy > 0.98) {
       await sessionRef.update({ status: 'under_review', completedAt: new Date() });
       return res.json({ prize: 0, status: 'under_review', message: 'Sesión en verificación.' });
     }
 
-    // Calcular premio
     const fundRatio = FUND_RATIO[data.entryFee] || 0.75;
     const contribution = data.entryFee * fundRatio;
     const multiplier = MULTIPLIERS[data.difficulty] || 1.0;
     const basePrize = contribution * multiplier * accuracy;
 
-    // Bonus velocidad (hasta +20%)
     const avgTime = answers.reduce((s: number, a: any) => s + (a.responseTimeMs || 5000), 0) / answers.length;
     const speedBonus = avgTime < 3000 ? basePrize * 0.20 : avgTime < 5000 ? basePrize * 0.10 : 0;
 
-    // Bonus racha
     const streakLevel = Math.min(streak || 0, 5);
     const streakBonus = streakLevel > 3 ? basePrize * 0.10 * (streakLevel - 3) : 0;
 
-    // Penalización por fallos
     const wrong = questions.length - correct;
     const penalty = wrong * (basePrize * 0.05);
 
