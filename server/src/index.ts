@@ -17,17 +17,18 @@ app.get("/health", (req, res) => {
 import gameRoutes from "./routes/game";
 import walletRoutes from "./routes/wallet";
 import adminRoutes from "./routes/admin";
+import authRoutes from "./routes/auth";
 import emailTrackingRoutes from "./routes/webhooks/emailTracking";
 
 app.use("/api/game", gameRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/webhooks", emailTrackingRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`?? SkillPlay server running on port ${PORT}`);
+  console.log(`SkillPlay server running on port ${PORT}`);
 });
 
 export default app;
-
