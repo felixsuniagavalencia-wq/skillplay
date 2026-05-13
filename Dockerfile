@@ -6,14 +6,12 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-# Copiar todo el código
+# Copiar cÃ³digo fuente (sin node_modules gracias al .dockerignore)
 COPY . .
 
-# Compilar TypeScript a JavaScript
-RUN npm run build
+# Compilar TypeScript
+RUN npx tsc -p server/tsconfig.json
 
 EXPOSE 3000
 
-# Iniciar el servidor con el código compilado
 CMD ["npm", "start"]
-
