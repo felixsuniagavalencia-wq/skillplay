@@ -5,7 +5,6 @@ import Anthropic from '@anthropic-ai/sdk';
 const router = Router();
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// Multiplicadores por dificultad
 const MULTIPLIERS: Record<string, number> = {
   basico: 1.0,
   medio: 1.8,
@@ -13,7 +12,6 @@ const MULTIPLIERS: Record<string, number> = {
   experto: 4.0
 };
 
-// Ratio al fondo por cuota
 const FUND_RATIO: Record<number, number> = {
   0.50: 0.70,
   1.00: 0.72,
@@ -61,7 +59,6 @@ El campo "correct" es el índice (0-3) de la opción correcta.`;
     const rawText = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed = JSON.parse(rawText);
 
-    // Crear sesión en Firestore
     const sessionRef = db.collection('games').doc();
     await sessionRef.set({
       userId,
@@ -134,6 +131,7 @@ router.post('/submit', async (req, res) => {
     const prize = Math.min(raw, basePrize * 2.5);
     const prizeFinal = Math.max(0, Math.round(prize * 100) / 100);
 
+    // Actualizar sesión
     await sessionRef.update({
       status: 'completed',
       prize: prizeFinal,
@@ -141,6 +139,38 @@ router.post('/submit', async (req, res) => {
       answers: verifiedAnswers,
       completedAt: new Date()
     });
+
+    // Acreditar premio al balance del usuario
+    if (prizeFinal > 0) {
+      const userRef = db.collection('users').doc(data.userId);
+      const userDoc = await userRef.get();
+
+      if (userDoc.exists) {
+        const userData = userDoc.data()!;
+        const newBalance = Math.round(((userData.balance || 0) + prizeFinal) * 100) / 100;
+        const newDailyEarned = Math.round(((userData.dailyEarned || 0) + prizeFinal) * 100) / 100;
+        const newTotalEarned = Math.round(((userData.totalEarned || 0) + prizeFinal) * 100) / 100;
+
+        await userRef.update({
+          balance: newBalance,
+          dailyEarned: newDailyEarned,
+          totalEarned: newTotalEarned,
+          gamesPlayed: (userData.gamesPlayed || 0) + 1
+        });
+
+        // Registrar transacción
+        await db.collection('transactions').add({
+          userId: data.userId,
+          type: 'prize',
+          amount: prizeFinal,
+          balanceBefore: userData.balance || 0,
+          balanceAfter: newBalance,
+          gameId: sessionId,
+          status: 'completed',
+          createdAt: new Date()
+        });
+      }
+    }
 
     return res.json({
       prize: prizeFinal,
