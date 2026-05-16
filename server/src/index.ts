@@ -27,6 +27,7 @@ import walletRoutes from "./routes/wallet";
 import adminRoutes from "./routes/admin";
 import authRoutes from "./routes/auth";
 import kycRoutes from "./routes/kyc";
+import paymentRoutes from "./routes/payments";
 import emailTrackingRoutes from "./routes/webhooks/emailTracking";
 
 app.use("/api/game", gameRoutes);
@@ -34,6 +35,7 @@ app.use("/api/wallet", walletRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/kyc", kycRoutes);
+app.use("/api/payments", paymentRoutes);
 app.use("/api/webhooks", emailTrackingRoutes);
 
 const PORT = process.env.PORT || 3000;
