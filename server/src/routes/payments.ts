@@ -4,7 +4,7 @@ import { db } from '../db';
 
 const router = Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-04-10'
+  apiVersion: '2023-10-16'
 });
 
 // POST /api/payments/create-payment-intent
@@ -26,7 +26,7 @@ router.post('/create-payment-intent', async (req, res) => {
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // en céntimos
+      amount: Math.round(amount * 100),
       currency: 'eur',
       metadata: { userId, amount: amount.toString() }
     });
@@ -66,12 +66,10 @@ router.post('/confirm', async (req, res) => {
     const userDoc = await userRef.get();
     const userData = userDoc.data()!;
 
-    // Acreditar saldo
     await userRef.update({
       balance: (userData.balance || 0) + amount
     });
 
-    // Registrar transacción
     await db.collection('transactions').add({
       userId,
       type: 'deposit',
