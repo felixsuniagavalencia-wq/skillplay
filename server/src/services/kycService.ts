@@ -21,7 +21,7 @@ export async function createKycSession(userId: string, firstName: string, lastNa
       }
     };
 
-    const payloadStr = JSON.stringify(payload.verification);
+    const payloadStr = JSON.stringify(payload);
     const signature = crypto
       .createHmac('sha256', VERIFF_SECRET_KEY)
       .update(payloadStr)
