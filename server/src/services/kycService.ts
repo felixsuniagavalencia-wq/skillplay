@@ -21,7 +21,7 @@ export async function createKycSession(userId: string, firstName: string, lastNa
       }
     };
 
-    const payloadStr = JSON.stringify(payload);
+    const payloadStr = JSON.stringify(payload.verification);
     const signature = crypto
       .createHmac('sha256', VERIFF_SECRET_KEY)
       .update(payloadStr)
@@ -59,10 +59,14 @@ export async function createKycSession(userId: string, firstName: string, lastNa
 }
 
 // Procesar webhook de Veriff
-export async function processKycWebhook(payload: any, signature: string) {
+export async function processKycWebhook(
+  rawBody: string,
+  signature: string,
+  payload: any
+) {
   const expectedSignature = crypto
     .createHmac('sha256', VERIFF_SECRET_KEY)
-    .update(JSON.stringify(payload))
+    .update(rawBody)
     .digest('hex');
 
   if (signature !== expectedSignature) {

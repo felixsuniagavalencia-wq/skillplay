@@ -1,10 +1,11 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
+import express from 'express';
 import { createKycSession, processKycWebhook } from '../services/kycService';
 
 const router = Router();
 
 // POST /api/kyc/initiate
-router.post('/initiate', async (req, res) => {
+router.post('/initiate', async (req: Request, res: Response) => {
   try {
     const { userId, firstName, lastName } = req.body;
 
@@ -26,16 +27,25 @@ router.post('/initiate', async (req, res) => {
   }
 });
 
-// POST /api/kyc/webhook
-router.post('/webhook', async (req, res) => {
-  try {
-    const signature = req.headers['x-signature'] as string;
-    const result = await processKycWebhook(req.body, signature);
-    return res.json({ success: true, ...result });
-  } catch (err: any) {
-    console.error('KYC webhook error:', err);
-    return res.status(400).json({ error: err.message });
+// POST /api/kyc/webhook — usa raw body para verificar firma HMAC
+router.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }),
+  async (req: Request, res: Response) => {
+    try {
+      const signature = req.headers['x-signature'] as string;
+
+      // req.body aquí es un Buffer, lo convertimos a string
+      const rawBody = req.body.toString('utf8');
+      const payload = JSON.parse(rawBody);
+
+      const result = await processKycWebhook(rawBody, signature, payload);
+      return res.json({ success: true, ...result });
+    } catch (err: any) {
+      console.error('KYC webhook error:', err);
+      return res.status(400).json({ error: err.message });
+    }
   }
-});
+);
 
 export default router;

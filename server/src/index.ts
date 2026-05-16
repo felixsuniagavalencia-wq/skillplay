@@ -6,7 +6,15 @@ dotenv.config();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+
+// express.json() para todas las rutas EXCEPTO el webhook de Veriff
+app.use((req, res, next) => {
+  if (req.path === '/api/kyc/webhook') {
+    next(); // el webhook maneja su propio body parsing
+  } else {
+    express.json()(req, res, next);
+  }
+});
 
 // Health check
 app.get("/health", (req, res) => {
