@@ -55,10 +55,14 @@ router.get('/transactions/:userId', async (req, res) => {
 // POST /api/wallet/withdraw
 router.post('/withdraw', async (req, res) => {
   try {
-    const { userId, amount } = req.body;
+    const { userId, amount, iban, accountHolder } = req.body;
 
     if (!userId || !amount) {
       return res.status(400).json({ error: 'Faltan datos requeridos' });
+    }
+
+    if (!iban || !accountHolder) {
+      return res.status(400).json({ error: 'IBAN y nombre del titular son requeridos' });
     }
 
     const userRef = db.collection('users').doc(userId);
@@ -74,22 +78,28 @@ router.post('/withdraw', async (req, res) => {
       return res.status(403).json({ error: 'KYC no verificado. Completa la verificación antes de retirar.' });
     }
 
-    if (userData.balance < amount) {
-      return res.status(400).json({ error: 'Saldo insuficiente' });
-    }
-
     if (amount < 5) {
       return res.status(400).json({ error: 'El mínimo de retiro es 5 EUR' });
     }
 
-    // Registrar transacción pendiente
+    if (userData.balance < amount) {
+      return res.status(400).json({ error: 'Saldo insuficiente' });
+    }
+
+    // Generar referencia única
+    const reference = 'SP-' + Date.now().toString().slice(-8);
+
+    // Registrar transacción pendiente con IBAN
     const txRef = await db.collection('transactions').add({
       userId,
       type: 'withdrawal',
       amount,
+      iban: iban,
+      accountHolder: accountHolder,
       balanceBefore: userData.balance,
       balanceAfter: userData.balance - amount,
       status: 'pending',
+      reference,
       createdAt: new Date()
     });
 
@@ -102,7 +112,8 @@ router.post('/withdraw', async (req, res) => {
     return res.json({
       success: true,
       message: 'Retiro solicitado. Se procesará en 24-48h.',
-      transactionId: txRef.id
+      transactionId: txRef.id,
+      reference
     });
 
   } catch (err) {
