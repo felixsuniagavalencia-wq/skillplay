@@ -6,6 +6,14 @@ const VERIFF_API_KEY = process.env.VERIFF_API_KEY || '';
 const VERIFF_SECRET_KEY = process.env.VERIFF_SECRET_KEY || '';
 const VERIFF_BASE_URL = 'https://stationapi.veriff.com';
 
+// Genera firma X-SIGNATURE: SHA256(payload + secret)
+function generateSignature(payloadStr: string): string {
+  return crypto
+    .createHash('sha256')
+    .update(payloadStr + VERIFF_SECRET_KEY)
+    .digest('hex');
+}
+
 // Crear sesión de verificación KYC
 export async function createKycSession(userId: string, firstName: string, lastName: string) {
   try {
@@ -22,10 +30,7 @@ export async function createKycSession(userId: string, firstName: string, lastNa
     };
 
     const payloadStr = JSON.stringify(payload);
-    const signature = crypto
-      .createHmac('sha256', VERIFF_SECRET_KEY)
-      .update(payloadStr)
-      .digest('hex');
+    const signature = generateSignature(payloadStr);
 
     const response = await axios.post(
       `${VERIFF_BASE_URL}/v1/sessions`,
@@ -64,10 +69,7 @@ export async function processKycWebhook(
   signature: string,
   payload: any
 ) {
-  const expectedSignature = crypto
-    .createHmac('sha256', VERIFF_SECRET_KEY)
-    .update(rawBody)
-    .digest('hex');
+  const expectedSignature = generateSignature(rawBody);
 
   if (signature !== expectedSignature) {
     throw new Error('Firma inválida');
