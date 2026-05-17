@@ -51,7 +51,6 @@ router.get('/withdrawals', async (req, res) => {
   try {
     const snap = await db.collection('transactions')
       .where('type', '==', 'withdrawal')
-      .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
 
@@ -101,7 +100,6 @@ router.post('/withdrawal/reject', async (req, res) => {
       return res.status(400).json({ error: 'transactionId, userId y amount requeridos' });
     }
 
-    // Devolver saldo al usuario
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
     const userData = userDoc.data()!;
@@ -135,7 +133,6 @@ router.post('/withdrawal/reject', async (req, res) => {
 router.get('/users', async (req, res) => {
   try {
     const snap = await db.collection('users')
-      .orderBy('createdAt', 'desc')
       .limit(100)
       .get();
 
