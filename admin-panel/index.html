@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkillPlay Admin Panel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0F0A1A; color: white; }
+    .header { background: #1F1535; padding: 20px 32px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #374151; }
+    .logo { font-size: 24px; font-weight: bold; color: #7C3AED; }
+    .status { display: flex; align-items: center; gap: 8px; color: #22C55E; font-size: 14px; }
+    .dot { width: 8px; height: 8px; background: #22C55E; border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .container { padding: 32px; max-width: 1400px; margin: 0 auto; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .card { background: #1F1535; border-radius: 16px; padding: 24px; }
+    .card-label { color: #6B7280; font-size: 13px; margin-bottom: 8px; }
+    .card-value { font-size: 32px; font-weight: bold; color: #FBBF24; }
+    .card-sub { font-size: 13px; color: #9CA3AF; margin-top: 4px; }
+    .section { background: #1F1535; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .section-title { font-size: 18px; font-weight: bold; margin-bottom: 20px; color: white; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; color: #6B7280; font-size: 13px; padding: 8px 12px; border-bottom: 1px solid #374151; }
+    td { padding: 12px; border-bottom: 1px solid #1a1030; font-size: 14px; }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-pending { background: #78350f; color: #FCD34D; }
+    .badge-completed { background: #052e16; color: #22C55E; }
+    .badge-rejected { background: #450a0a; color: #EF4444; }
+    .btn { padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .btn-approve { background: #22C55E; color: white; margin-right: 6px; }
+    .btn-reject { background: #EF4444; color: white; }
+    .btn-approve:hover { background: #16a34a; }
+    .btn-reject:hover { background: #dc2626; }
+    .refresh-btn { background: #7C3AED; color: white; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; }
+    .refresh-btn:hover { background: #6d28d9; }
+    .loading { color: #6B7280; text-align: center; padding: 40px; }
+    .login-screen { display: flex; align-items: center; justify-content: center; height: 100vh; }
+    .login-box { background: #1F1535; border-radius: 20px; padding: 40px; width: 360px; text-align: center; }
+    .login-box h2 { margin-bottom: 24px; color: #7C3AED; }
+    .login-box input { width: 100%; padding: 12px 16px; background: #0F0A1A; border: 1px solid #374151; border-radius: 10px; color: white; font-size: 15px; margin-bottom: 16px; }
+    .login-box button { width: 100%; padding: 14px; background: #7C3AED; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 24px; }
+    .tab { padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; background: #1F1535; color: #6B7280; }
+    .tab.active { background: #7C3AED; color: white; }
+  </style>
+</head>
+<body>
+
+<div id="login-screen" class="login-screen">
+  <div class="login-box">
+    <div style="font-size:48px;margin-bottom:16px;">🧠</div>
+    <h2>SkillPlay Admin</h2>
+    <input type="password" id="admin-password" placeholder="Contraseña de admin" />
+    <button onclick="login()">Entrar</button>
+    <p id="login-error" style="color:#EF4444;margin-top:12px;font-size:13px;"></p>
+  </div>
+</div>
+
+<div id="main" style="display:none;">
+  <div class="header">
+    <div class="logo">🧠 SkillPlay Admin</div>
+    <div style="display:flex;gap:16px;align-items:center;">
+      <div class="status"><div class="dot"></div> En vivo</div>
+      <button class="refresh-btn" onclick="loadAll()">↻ Actualizar</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('dashboard')">📊 Dashboard</button>
+      <button class="tab" onclick="showTab('withdrawals')">💸 Retiros</button>
+      <button class="tab" onclick="showTab('users')">👥 Usuarios</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div id="tab-dashboard">
+      <div class="grid" id="stats-grid">
+        <div class="loading">Cargando estadísticas...</div>
+      </div>
+    </div>
+
+    <!-- WITHDRAWALS -->
+    <div id="tab-withdrawals" style="display:none;">
+      <div class="section">
+        <div class="section-title">💸 Retiros Pendientes y Recientes</div>
+        <div id="withdrawals-table"><div class="loading">Cargando retiros...</div></div>
+      </div>
+    </div>
+
+    <!-- USERS -->
+    <div id="tab-users" style="display:none;">
+      <div class="section">
+        <div class="section-title">👥 Usuarios Registrados</div>
+        <div id="users-table"><div class="loading">Cargando usuarios...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API = 'https://skillplay-production.up.railway.app';
+  const ADMIN_PASSWORD = 'skillplay2024admin';
+
+  function login() {
+    const pwd = document.getElementById('admin-password').value;
+    if (pwd === ADMIN_PASSWORD) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('main').style.display = 'block';
+      loadAll();
+    } else {
+      document.getElementById('login-error').textContent = 'Contraseña incorrecta';
+    }
+  }
+
+  document.getElementById('admin-password').addEventListener('keypress', e => {
+    if (e.key === 'Enter') login();
+  });
+
+  function showTab(tab) {
+    ['dashboard', 'withdrawals', 'users'].forEach(t => {
+      document.getElementById('tab-' + t).style.display = t === tab ? 'block' : 'none';
+    });
+    document.querySelectorAll('.tab').forEach((el, i) => {
+      el.classList.toggle('active', ['dashboard', 'withdrawals', 'users'][i] === tab);
+    });
+    if (tab === 'withdrawals') loadWithdrawals();
+    if (tab === 'users') loadUsers();
+  }
+
+  async function loadAll() {
+    loadStats();
+  }
+
+  async function loadStats() {
+    try {
+      const res = await fetch(API + '/api/admin/stats');
+      const data = await res.json();
+      document.getElementById('stats-grid').innerHTML = `
+        <div class="card">
+          <div class="card-label">👥 Total Usuarios</div>
+          <div class="card-value">${data.totalUsers}</div>
+          <div class="card-sub">${data.verifiedUsers} verificados KYC</div>
+        </div>
+        <div class="card">
+          <div class="card-label">💰 Balance Total Wallets</div>
+          <div class="card-value">${data.totalBalance?.toFixed(2)} €</div>
+          <div class="card-sub">Fondos en cuentas de usuarios</div>
+        </div>
+        <div class="card">
+          <div class="card-label">📥 Total Depositado</div>
+          <div class="card-value">${data.totalDeposited?.toFixed(2)} €</div>
+          <div class="card-sub">Via Stripe</div>
+        </div>
+        <div class="card">
+          <div class="card-label">📤 Total Retirado</div>
+          <div class="card-value">${data.totalWithdrawn?.toFixed(2)} €</div>
+          <div class="card-sub">Transferencias completadas</div>
+        </div>
+        <div class="card">
+          <div class="card-label">🏆 Premios Distribuidos</div>
+          <div class="card-value">${data.totalPrizes?.toFixed(2)} €</div>
+          <div class="card-sub">Total ganado por usuarios</div>
+        </div>
+        <div class="card">
+          <div class="card-label">⏳ Retiros Pendientes</div>
+          <div class="card-value" style="color:#FCD34D;">${data.pendingWithdrawals}</div>
+          <div class="card-sub">${data.pendingAmount?.toFixed(2)} € pendiente</div>
+        </div>
+        <div class="card">
+          <div class="card-label">📊 Total Transacciones</div>
+          <div class="card-value">${data.totalTransactions}</div>
+          <div class="card-sub">Todas las operaciones</div>
+        </div>
+      `;
+    } catch (err) {
+      document.getElementById('stats-grid').innerHTML = '<div class="loading">Error cargando datos</div>';
+    }
+  }
+
+  async function loadWithdrawals() {
+    try {
+      const res = await fetch(API + '/api/admin/withdrawals');
+      const data = await res.json();
+      const rows = data.withdrawals.map(w => `
+        <tr>
+          <td>${w.reference || w.id?.slice(0,8)}</td>
+          <td>${w.userId}</td>
+          <td><strong>${w.amount?.toFixed(2)} €</strong></td>
+          <td>${w.iban || '-'}</td>
+          <td>${w.accountHolder || '-'}</td>
+          <td><span class="badge badge-${w.status}">${w.status}</span></td>
+          <td>${w.createdAt?._seconds ? new Date(w.createdAt._seconds * 1000).toLocaleDateString('es') : '-'}</td>
+          <td>
+            ${w.status === 'pending' ? `
+              <button class="btn btn-approve" onclick="approveWithdrawal('${w.id}')">✓ Aprobar</button>
+              <button class="btn btn-reject" onclick="rejectWithdrawal('${w.id}', '${w.userId}', ${w.amount})">✗ Rechazar</button>
+            ` : '-'}
+          </td>
+        </tr>
+      `).join('');
+
+      document.getElementById('withdrawals-table').innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Referencia</th>
+              <th>Usuario</th>
+              <th>Importe</th>
+              <th>IBAN</th>
+              <th>Titular</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="8" style="text-align:center;color:#6B7280;">No hay retiros</td></tr>'}</tbody>
+        </table>
+      `;
+    } catch (err) {
+      document.getElementById('withdrawals-table').innerHTML = '<div class="loading">Error cargando retiros</div>';
+    }
+  }
+
+  async function loadUsers() {
+    try {
+      const res = await fetch(API + '/api/admin/users');
+      const data = await res.json();
+      const rows = data.users.map(u => `
+        <tr>
+          <td>${u.username || u.id}</td>
+          <td>${u.email || '-'}</td>
+          <td><strong style="color:#FBBF24;">${(u.balance || 0).toFixed(2)} €</strong></td>
+          <td><span class="badge badge-${u.kycStatus === 'verified' ? 'completed' : 'pending'}">${u.kycStatus}</span></td>
+          <td>${u.accountLevel}</td>
+          <td>${u.gamesPlayed || 0}</td>
+          <td>${u.createdAt?._seconds ? new Date(u.createdAt._seconds * 1000).toLocaleDateString('es') : '-'}</td>
+        </tr>
+      `).join('');
+
+      document.getElementById('users-table').innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Email</th>
+              <th>Balance</th>
+              <th>KYC</th>
+              <th>Nivel</th>
+              <th>Partidas</th>
+              <th>Registro</th>
+            </tr>
+          </thead>
+          <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:#6B7280;">No hay usuarios</td></tr>'}</tbody>
+        </table>
+      `;
+    } catch (err) {
+      document.getElementById('users-table').innerHTML = '<div class="loading">Error cargando usuarios</div>';
+    }
+  }
+
+  async function approveWithdrawal(id) {
+    if (!confirm('¿Confirmas aprobar este retiro?')) return;
+    try {
+      const res = await fetch(API + '/api/admin/withdrawal/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId: id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Retiro aprobado');
+        loadWithdrawals();
+      } else {
+        alert('Error: ' + data.error);
+      }
+    } catch (err) {
+      alert('Error de conexión');
+    }
+  }
+
+  async function rejectWithdrawal(id, userId, amount) {
+    if (!confirm('¿Confirmas rechazar este retiro? El saldo será devuelto al usuario.')) return;
+    try {
+      const res = await fetch(API + '/api/admin/withdrawal/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transactionId: id, userId, amount })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Retiro rechazado y saldo devuelto');
+        loadWithdrawals();
+      } else {
+        alert('Error: ' + data.error);
+      }
+    } catch (err) {
+      alert('Error de conexión');
+    }
+  }
+</script>
+</body>
+</html>
