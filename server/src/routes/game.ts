@@ -29,6 +29,24 @@ router.post('/generate', async (req, res) => {
       return res.status(400).json({ error: 'Faltan parámetros requeridos' });
     }
 
+    // Verificar y descontar saldo antes de jugar
+    const userRef = db.collection('users').doc(userId);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const userData = userDoc.data()!;
+
+    if ((userData.balance || 0) < entryFee) {
+      return res.status(400).json({ error: 'Saldo insuficiente. Recarga tu wallet para jugar.' });
+    }
+
+    // Descontar entry fee del balance
+    const newBalance = Math.round(((userData.balance || 0) - entryFee) * 100) / 100;
+    await userRef.update({ balance: newBalance });
+
     const prompt = `Genera 5 preguntas de trivia en español sobre "${category}" con dificultad "${difficulty}".
     
 Responde SOLO con JSON válido, sin texto adicional, sin markdown, sin backticks:
@@ -70,6 +88,18 @@ El campo "correct" es el índice (0-3) de la opción correcta.`;
       startedAt: new Date()
     });
 
+    // Registrar transacción de entry fee
+    await db.collection('transactions').add({
+      userId,
+      type: 'entry_fee',
+      amount: entryFee,
+      balanceBefore: userData.balance || 0,
+      balanceAfter: newBalance,
+      gameId: sessionRef.id,
+      status: 'completed',
+      createdAt: new Date()
+    });
+
     return res.json({
       sessionId: sessionRef.id,
       questions: parsed.questions.map((q: any) => ({
@@ -78,9 +108,9 @@ El campo "correct" es el índice (0-3) de la opción correcta.`;
       }))
     });
 
-  } catch (err) {
+  } catch (err: any) {
     console.error('Game generate error:', err);
-    return res.status(500).json({ error: 'Error generando preguntas' });
+    return res.status(500).json({ error: err.message || 'Error generando preguntas' });
   }
 });
 
@@ -131,7 +161,6 @@ router.post('/submit', async (req, res) => {
     const prize = Math.min(raw, basePrize * 2.5);
     const prizeFinal = Math.max(0, Math.round(prize * 100) / 100);
 
-    // Actualizar sesión
     await sessionRef.update({
       status: 'completed',
       prize: prizeFinal,
@@ -140,7 +169,6 @@ router.post('/submit', async (req, res) => {
       completedAt: new Date()
     });
 
-    // Acreditar premio al balance del usuario
     if (prizeFinal > 0) {
       const userRef = db.collection('users').doc(data.userId);
       const userDoc = await userRef.get();
@@ -158,7 +186,6 @@ router.post('/submit', async (req, res) => {
           gamesPlayed: (userData.gamesPlayed || 0) + 1
         });
 
-        // Registrar transacción
         await db.collection('transactions').add({
           userId: data.userId,
           type: 'prize',
@@ -168,6 +195,16 @@ router.post('/submit', async (req, res) => {
           gameId: sessionId,
           status: 'completed',
           createdAt: new Date()
+        });
+      }
+    } else {
+      // Si no hay premio, igual actualizamos gamesPlayed
+      const userRef = db.collection('users').doc(data.userId);
+      const userDoc = await userRef.get();
+      if (userDoc.exists) {
+        const userData = userDoc.data()!;
+        await userRef.update({
+          gamesPlayed: (userData.gamesPlayed || 0) + 1
         });
       }
     }
