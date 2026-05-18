@@ -35,7 +35,6 @@ router.get('/transactions/:userId', async (req, res) => {
     const { userId } = req.params;
     const snapshot = await db.collection('transactions')
       .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
       .limit(20)
       .get();
 
@@ -55,7 +54,7 @@ router.get('/transactions/:userId', async (req, res) => {
 // POST /api/wallet/withdraw
 router.post('/withdraw', async (req, res) => {
   try {
-    const { userId, amount, iban, accountHolder } = req.body;
+    const { userId, amount, iban, bic, accountHolder, bankName, bankCountry } = req.body;
 
     if (!userId || !amount) {
       return res.status(400).json({ error: 'Faltan datos requeridos' });
@@ -63,6 +62,10 @@ router.post('/withdraw', async (req, res) => {
 
     if (!iban || !accountHolder) {
       return res.status(400).json({ error: 'IBAN y nombre del titular son requeridos' });
+    }
+
+    if (!bic) {
+      return res.status(400).json({ error: 'BIC/SWIFT es requerido' });
     }
 
     const userRef = db.collection('users').doc(userId);
@@ -86,16 +89,17 @@ router.post('/withdraw', async (req, res) => {
       return res.status(400).json({ error: 'Saldo insuficiente' });
     }
 
-    // Generar referencia única
     const reference = 'SP-' + Date.now().toString().slice(-8);
 
-    // Registrar transacción pendiente con IBAN
     const txRef = await db.collection('transactions').add({
       userId,
       type: 'withdrawal',
       amount,
-      iban: iban,
-      accountHolder: accountHolder,
+      iban,
+      bic,
+      accountHolder,
+      bankName: bankName || '',
+      bankCountry: bankCountry || '',
       balanceBefore: userData.balance,
       balanceAfter: userData.balance - amount,
       status: 'pending',
@@ -103,7 +107,6 @@ router.post('/withdraw', async (req, res) => {
       createdAt: new Date()
     });
 
-    // Descontar saldo
     await userRef.update({
       balance: userData.balance - amount,
       totalWithdrawn: (userData.totalWithdrawn || 0) + amount
