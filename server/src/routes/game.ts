@@ -65,9 +65,7 @@ router.post('/generate', async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    const acceptLanguage = req.headers['accept-language'] || '';
-    const detectedLang = acceptLanguage.split(',')[0]?.split('-')[0]?.toLowerCase() || 'en';
-    const lang = LANGUAGE_NAMES[detectedLang] ? detectedLang : (language || 'en');
+    const lang = language || 'en';
     const langName = LANGUAGE_NAMES[lang] || 'English';
 
     const userRef = db.collection('users').doc(userId);
