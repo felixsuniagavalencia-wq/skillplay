@@ -20,97 +20,200 @@ const FUND_RATIO: Record<number, number> = {
   10.00: 0.85
 };
 
+const FREE_GAMES_LIMIT = 15;
+const FREE_GAMES_REFILL = 5;
+const FREE_GAMES_REFILL_HOURS = 48;
+const EPIC_QUESTION_MULTIPLIER = 3.5;
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  es: 'Spanish',
+  en: 'English',
+  pt: 'Portuguese',
+  fr: 'French',
+  de: 'German',
+  it: 'Italian',
+};
+
+function calculateFreeGamesStatus(userData: any) {
+  const freeGamesLeft = userData.freeGamesLeft ?? FREE_GAMES_LIMIT;
+  const lastFreeGamesRefill = userData.lastFreeGamesRefill?.toDate?.() || null;
+  const now = new Date();
+
+  if (freeGamesLeft > 0) {
+    return { freeGamesLeft, canRefill: false, nextRefillAt: null };
+  }
+
+  if (lastFreeGamesRefill) {
+    const hoursSinceRefill = (now.getTime() - lastFreeGamesRefill.getTime()) / (1000 * 60 * 60);
+    if (hoursSinceRefill >= FREE_GAMES_REFILL_HOURS) {
+      return { freeGamesLeft: 0, canRefill: true, nextRefillAt: null };
+    } else {
+      const nextRefillAt = new Date(lastFreeGamesRefill.getTime() + FREE_GAMES_REFILL_HOURS * 60 * 60 * 1000);
+      return { freeGamesLeft: 0, canRefill: false, nextRefillAt };
+    }
+  }
+
+  return { freeGamesLeft: 0, canRefill: true, nextRefillAt: null };
+}
+
 // POST /api/game/generate
 router.post('/generate', async (req, res) => {
   try {
-    const { category, difficulty, entryFee, userId } = req.body;
+    const { category, difficulty, entryFee, userId, isFreeGame, language } = req.body;
 
-    if (!category || !difficulty || !entryFee || !userId) {
-      return res.status(400).json({ error: 'Faltan parámetros requeridos' });
+    if (!category || !difficulty || !userId) {
+      return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    // Verificar y descontar saldo antes de jugar
+    // Detectar idioma desde header Accept-Language del dispositivo
+    const acceptLanguage = req.headers['accept-language'] || '';
+    const detectedLang = acceptLanguage.split(',')[0]?.split('-')[0]?.toLowerCase() || 'en';
+    const lang = LANGUAGE_NAMES[detectedLang] ? detectedLang : (language || 'en');
+    const langName = LANGUAGE_NAMES[lang] || 'English';
+
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
 
     if (!userDoc.exists) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     const userData = userDoc.data()!;
 
-    if ((userData.balance || 0) < entryFee) {
-      return res.status(400).json({ error: 'Saldo insuficiente. Recarga tu wallet para jugar.' });
+    if (userData.freeGamesLeft === undefined) {
+      await userRef.update({ freeGamesLeft: FREE_GAMES_LIMIT });
+      userData.freeGamesLeft = FREE_GAMES_LIMIT;
     }
 
-    // Descontar entry fee del balance
-    const newBalance = Math.round(((userData.balance || 0) - entryFee) * 100) / 100;
-    await userRef.update({ balance: newBalance });
+    let { freeGamesLeft, canRefill } = calculateFreeGamesStatus(userData);
 
-    const prompt = `Genera 5 preguntas de trivia en español sobre "${category}" con dificultad "${difficulty}".
-    
-Responde SOLO con JSON válido, sin texto adicional, sin markdown, sin backticks:
+    if (canRefill) {
+      const newFreeGames = Math.min((freeGamesLeft || 0) + FREE_GAMES_REFILL, FREE_GAMES_LIMIT);
+      await userRef.update({
+        freeGamesLeft: newFreeGames,
+        lastFreeGamesRefill: new Date()
+      });
+      freeGamesLeft = newFreeGames;
+    }
+
+    const isActuallyFree = isFreeGame === true && freeGamesLeft > 0;
+
+    if (!isActuallyFree && (userData.balance || 0) < entryFee) {
+      return res.status(400).json({ error: 'Insufficient balance. Please top up your wallet.' });
+    }
+
+    let newBalance = userData.balance || 0;
+    if (!isActuallyFree && entryFee > 0) {
+      newBalance = Math.round(((userData.balance || 0) - entryFee) * 100) / 100;
+      await userRef.update({ balance: newBalance });
+
+      await db.collection('transactions').add({
+        userId,
+        type: 'entry_fee',
+        amount: entryFee,
+        balanceBefore: userData.balance || 0,
+        balanceAfter: newBalance,
+        status: 'completed',
+        createdAt: new Date()
+      });
+    }
+
+    if (isActuallyFree) {
+      const newFreeGamesLeft = Math.max(0, freeGamesLeft - 1);
+      const updateData: any = { freeGamesLeft: newFreeGamesLeft };
+      if (newFreeGamesLeft === 0) {
+        updateData.lastFreeGamesRefill = new Date();
+      }
+      await userRef.update(updateData);
+      freeGamesLeft = newFreeGamesLeft;
+    }
+
+    const hasEpicQuestion = Math.random() < 0.2;
+    const epicQuestionIndex = hasEpicQuestion ? Math.floor(Math.random() * 5) : -1;
+    const randomSeed = Math.floor(Math.random() * 1000000);
+    const timestamp = Date.now();
+
+    const prompt = `Generate 5 UNIQUE and ORIGINAL trivia questions in ${langName} about "${category}" with difficulty "${difficulty}".
+
+IMPORTANT:
+- Random seed: ${randomSeed} (use this to generate different questions each time)
+- Timestamp: ${timestamp}
+- Avoid very basic and well-known questions
+- Questions must be specific, detailed, surprising and uncommon
+- Each game must feel completely different from the previous one
+- Include curious facts, specific dates, little-known historical figures, records, etc.
+- Vary the type of question: dates, names, quantities, specific places, processes, causes
+${hasEpicQuestion ? `- Question number ${epicQuestionIndex + 1} must be EXTREMELY difficult, almost impossible for an average user. Something very specific and technical.` : ''}
+
+Respond ONLY with valid JSON, no additional text, no markdown, no backticks:
 {
   "questions": [
     {
-      "question": "texto de la pregunta",
-      "options": ["opción A", "opción B", "opción C", "opción D"],
+      "question": "question text",
+      "options": ["option A", "option B", "option C", "option D"],
       "correct": 0,
-      "explanation": "explicación breve"
+      "explanation": "brief explanation",
+      "isEpic": false
     }
   ]
 }
 
-El campo "correct" es el índice (0-3) de la opción correcta.`;
+The "correct" field is the index (0-3) of the correct option.
+The "isEpic" field is true only for the extremely difficult question.`;
 
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 800,
+      max_tokens: 1200,
       messages: [{ role: 'user', content: prompt }]
     });
 
     const content = message.content[0];
     if (content.type !== 'text') {
-      throw new Error('Respuesta inesperada de Claude');
+      throw new Error('Unexpected response from Claude');
     }
 
     const rawText = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed = JSON.parse(rawText);
+
+    if (hasEpicQuestion && parsed.questions[epicQuestionIndex]) {
+      parsed.questions[epicQuestionIndex].isEpic = true;
+      const epicBase = isActuallyFree ? 1 : (entryFee || 1);
+      parsed.questions[epicQuestionIndex].epicPrize = Math.round(epicBase * EPIC_QUESTION_MULTIPLIER * 100) / 100;
+    }
 
     const sessionRef = db.collection('games').doc();
     await sessionRef.set({
       userId,
       category,
       difficulty,
-      entryFee,
+      entryFee: isActuallyFree ? 0 : entryFee,
+      isFreeGame: isActuallyFree,
       questions: parsed.questions,
+      epicQuestionIndex,
+      hasEpicQuestion,
       status: 'active',
       startedAt: new Date()
     });
 
-    // Registrar transacción de entry fee
-    await db.collection('transactions').add({
-      userId,
-      type: 'entry_fee',
-      amount: entryFee,
-      balanceBefore: userData.balance || 0,
-      balanceAfter: newBalance,
-      gameId: sessionRef.id,
-      status: 'completed',
-      createdAt: new Date()
-    });
+    const { nextRefillAt } = calculateFreeGamesStatus({ ...userData, freeGamesLeft });
 
     return res.json({
       sessionId: sessionRef.id,
+      isFreeGame: isActuallyFree,
+      freeGamesLeft,
+      nextRefillAt: nextRefillAt ? nextRefillAt.toISOString() : null,
       questions: parsed.questions.map((q: any) => ({
         question: q.question,
-        options: q.options
-      }))
+        options: q.options,
+        isEpic: q.isEpic || false,
+        epicPrize: q.epicPrize || 0
+      })),
+      fullQuestions: parsed.questions
     });
 
   } catch (err: any) {
     console.error('Game generate error:', err);
-    return res.status(500).json({ error: err.message || 'Error generando preguntas' });
+    return res.status(500).json({ error: err.message || 'Error generating questions' });
   }
 });
 
@@ -123,7 +226,7 @@ router.post('/submit', async (req, res) => {
     const session = await sessionRef.get();
 
     if (!session.exists) {
-      return res.status(404).json({ error: 'Sesión no encontrada' });
+      return res.status(404).json({ error: 'Session not found' });
     }
 
     const data = session.data()!;
@@ -138,43 +241,58 @@ router.post('/submit', async (req, res) => {
     const correct = verifiedAnswers.filter((a: any) => a.isCorrect).length;
     const accuracy = correct / questions.length;
 
-    if (accuracy > 0.98) {
-      await sessionRef.update({ status: 'under_review', completedAt: new Date() });
-      return res.json({ prize: 0, status: 'under_review', message: 'Sesión en verificación.' });
+    const avgTime = answers.reduce((s: number, a: any) => s + (a.responseTimeMs || 5000), 0) / answers.length;
+    const speedBonus = avgTime < 3000 ? 1 : 0;
+    const perfectBonus = correct === questions.length ? 2 : 0;
+    const freePoints = correct + speedBonus + perfectBonus;
+
+    let epicPrize = 0;
+    if (data.hasEpicQuestion && data.epicQuestionIndex >= 0) {
+      const epicAnswer = verifiedAnswers[data.epicQuestionIndex];
+      if (epicAnswer?.isCorrect) {
+        epicPrize = questions[data.epicQuestionIndex]?.epicPrize || 0;
+      }
     }
 
-    const fundRatio = FUND_RATIO[data.entryFee] || 0.75;
-    const contribution = data.entryFee * fundRatio;
-    const multiplier = MULTIPLIERS[data.difficulty] || 1.0;
-    const basePrize = contribution * multiplier * accuracy;
+    let prizeFinal = 0;
 
-    const avgTime = answers.reduce((s: number, a: any) => s + (a.responseTimeMs || 5000), 0) / answers.length;
-    const speedBonus = avgTime < 3000 ? basePrize * 0.20 : avgTime < 5000 ? basePrize * 0.10 : 0;
+    if (!data.isFreeGame && data.entryFee > 0) {
+      const fundRatio = FUND_RATIO[data.entryFee] || 0.75;
+      const contribution = data.entryFee * fundRatio;
+      const multiplier = MULTIPLIERS[data.difficulty] || 1.0;
+      const basePrize = contribution * multiplier * accuracy;
 
-    const streakLevel = Math.min(streak || 0, 5);
-    const streakBonus = streakLevel > 3 ? basePrize * 0.10 * (streakLevel - 3) : 0;
+      const speedBonusPrize = avgTime < 3000 ? basePrize * 0.20 : avgTime < 5000 ? basePrize * 0.10 : 0;
+      const streakLevel = Math.min(streak || 0, 5);
+      const streakBonus = streakLevel > 3 ? basePrize * 0.10 * (streakLevel - 3) : 0;
+      const wrong = questions.length - correct;
+      const penalty = wrong * (basePrize * 0.05);
 
-    const wrong = questions.length - correct;
-    const penalty = wrong * (basePrize * 0.05);
-
-    const raw = basePrize + speedBonus + streakBonus - penalty;
-    const prize = Math.min(raw, basePrize * 2.5);
-    const prizeFinal = Math.max(0, Math.round(prize * 100) / 100);
+      const raw = basePrize + speedBonusPrize + streakBonus - penalty + epicPrize;
+      const prize = Math.min(raw, basePrize * 2.5 + epicPrize);
+      prizeFinal = Math.max(0, Math.round(prize * 100) / 100);
+    } else {
+      prizeFinal = epicPrize;
+    }
 
     await sessionRef.update({
       status: 'completed',
       prize: prizeFinal,
       accuracy: Math.round(accuracy * 100),
       answers: verifiedAnswers,
+      freePoints: data.isFreeGame ? freePoints : 0,
       completedAt: new Date()
     });
 
-    if (prizeFinal > 0) {
-      const userRef = db.collection('users').doc(data.userId);
-      const userDoc = await userRef.get();
+    const userRef = db.collection('users').doc(data.userId);
+    const userDoc = await userRef.get();
 
-      if (userDoc.exists) {
-        const userData = userDoc.data()!;
+    if (userDoc.exists) {
+      const userData = userDoc.data()!;
+      const newGamesPlayed = (userData.gamesPlayed || 0) + 1;
+      const newTotalPoints = (userData.totalPoints || 0) + (data.isFreeGame ? freePoints : 0);
+
+      if (prizeFinal > 0) {
         const newBalance = Math.round(((userData.balance || 0) + prizeFinal) * 100) / 100;
         const newDailyEarned = Math.round(((userData.dailyEarned || 0) + prizeFinal) * 100) / 100;
         const newTotalEarned = Math.round(((userData.totalEarned || 0) + prizeFinal) * 100) / 100;
@@ -183,7 +301,8 @@ router.post('/submit', async (req, res) => {
           balance: newBalance,
           dailyEarned: newDailyEarned,
           totalEarned: newTotalEarned,
-          gamesPlayed: (userData.gamesPlayed || 0) + 1
+          gamesPlayed: newGamesPlayed,
+          totalPoints: newTotalPoints
         });
 
         await db.collection('transactions').add({
@@ -196,34 +315,33 @@ router.post('/submit', async (req, res) => {
           status: 'completed',
           createdAt: new Date()
         });
-      }
-    } else {
-      // Si no hay premio, igual actualizamos gamesPlayed
-      const userRef = db.collection('users').doc(data.userId);
-      const userDoc = await userRef.get();
-      if (userDoc.exists) {
-        const userData = userDoc.data()!;
+      } else {
         await userRef.update({
-          gamesPlayed: (userData.gamesPlayed || 0) + 1
+          gamesPlayed: newGamesPlayed,
+          totalPoints: newTotalPoints
         });
       }
     }
 
     return res.json({
       prize: prizeFinal,
+      epicPrize,
+      freePoints: data.isFreeGame ? freePoints : 0,
       status: 'completed',
       accuracy: Math.round(accuracy * 100),
+      isFreeGame: data.isFreeGame,
       breakdown: {
-        base: Math.round(basePrize * 100) / 100,
-        speed: Math.round(speedBonus * 100) / 100,
-        streak: Math.round(streakBonus * 100) / 100,
-        penalty: Math.round(penalty * 100) / 100
+        base: Math.round((prizeFinal - epicPrize) * 100) / 100,
+        speed: 0,
+        streak: 0,
+        penalty: 0,
+        epic: epicPrize
       }
     });
 
   } catch (err) {
     console.error('Game submit error:', err);
-    return res.status(500).json({ error: 'Error procesando resultados' });
+    return res.status(500).json({ error: 'Error processing results' });
   }
 });
 
