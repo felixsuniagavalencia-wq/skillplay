@@ -1,0 +1,79 @@
+# Query: firebase-admin
+# ContextLines: 1
+
+15 results - 15 files
+
+package.json:
+  13      "express": "^4.18.2",
+  14:     "firebase-admin": "^12.0.0",
+  15      "stripe": "^14.0.0",
+
+admin\src\app\api\users\route.ts:
+  2  import { NextRequest, NextResponse } from 'next/server';
+  3: import { db } from '@/lib/firebase-admin';
+  4  
+
+admin\src\app\api\waitlist\route.ts:
+  2  import { NextRequest, NextResponse } from 'next/server';
+  3: import { db } from '@/lib/firebase-';
+  4  
+
+admin\src\lib\auditLog.ts:
+  1  // Audit Log - SkillPlay Admin
+  2: import { db } from './firebase-admin';
+  3  
+
+scripts\analyze-beta-retention.ts:
+  1  // Beta Retention Analysis - SkillPlay
+  2: import { db } from '../server/src/firebase-admin';
+  3  
+
+scripts\beta-monitor.ts:
+  1  // Beta Monitor - SkillPlay
+  2: import { db } from '../server/src/firebase-admin';
+  3  
+
+scripts\launch-day-monitor.ts:
+  1  // Launch Day Monitor - SkillPlay
+  2: import { db } from '../server/src/firebase-admin';
+  3  
+
+scripts\week1-dashboard.ts:
+  1  // Week 1 Dashboard - SkillPlay
+  2: import { db } from '../server/src/firebase-admin';
+  3  
+
+server\src\firebaseAdmin.ts:
+  1  // Firebase Admin - SkillPlay
+  2: import admin from 'firebase-admin';
+  3  
+
+server\src\jobs\streakReminder.ts:
+  1  // Streak Reminder Job - SkillPlay
+  2: import { db } from '../firebase-admin';
+  3  
+
+server\src\routes\admin.ts:
+  2  import { Router } from 'express';
+  3: import { db } from '../firebase-admin';
+  4  import { invalidateMultiplierCache } from '../utils/prizeCalculator';
+
+server\src\routes\game.ts:
+  2  import { Router } from 'express';
+  3: import { db } from '../../firebase-admin';
+  4  
+
+server\src\routes\wallet.ts:
+  3  import { createPayout } from '../services/stripeService';
+  4: import { db } from '../../firebase-admin';
+  5  
+
+server\src\routes\webhooks\emailTracking.ts:
+  2  import { Router } from 'express';
+  3: import { db } from '../../firebase-admin';
+  4  
+
+server\src\services\stripeService.ts:
+  2  import Stripe from 'stripe';
+  3: import { db } from '../firebase-admin';
+  4  
