@@ -25,13 +25,13 @@ const FREE_GAMES_REFILL = 5;
 const FREE_GAMES_REFILL_HOURS = 48;
 const EPIC_QUESTION_MULTIPLIER = 3.5;
 
-const LANGUAGE_NAMES: Record<string, string> = {
-  es: 'Spanish',
+const langMap: Record<string, string> = {
+  es: 'español',
   en: 'English',
-  pt: 'Portuguese',
-  fr: 'French',
-  de: 'German',
-  it: 'Italian',
+  pt: 'português',
+  fr: 'français',
+  de: 'Deutsch',
+  it: 'italiano'
 };
 
 function calculateFreeGamesStatus(userData: any) {
@@ -65,8 +65,7 @@ router.post('/generate', async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    const lang = language || 'en';
-    const langName = LANGUAGE_NAMES[lang] || 'English';
+    const langName = langMap[language] || 'English';
 
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
@@ -133,16 +132,14 @@ router.post('/generate', async (req, res) => {
     const prompt = `Generate 5 UNIQUE and ORIGINAL trivia questions in ${langName} about "${category}" with difficulty "${difficulty}".
 
 IMPORTANT:
-- Random seed: ${randomSeed} (use this to generate different questions each time)
+- Random seed: ${randomSeed}
 - Timestamp: ${timestamp}
 - Avoid very basic and well-known questions
 - Questions must be specific, detailed, surprising and uncommon
 - Each game must feel completely different from the previous one
-- Include curious facts, specific dates, little-known historical figures, records, etc.
-- Vary the type of question: dates, names, quantities, specific places, processes, causes
-${hasEpicQuestion ? `- Question number ${epicQuestionIndex + 1} must be EXTREMELY difficult, almost impossible for an average user. Something very specific and technical.` : ''}
+${hasEpicQuestion ? `- Question number ${epicQuestionIndex + 1} must be EXTREMELY difficult, almost impossible for an average user.` : ''}
 
-Respond ONLY with valid JSON, no additional text, no markdown, no backticks:
+Respond ONLY with valid JSON, no extra text, no markdown, no backticks:
 {
   "questions": [
     {
