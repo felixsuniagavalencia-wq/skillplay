@@ -65,7 +65,6 @@ router.post('/generate', async (req, res) => {
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
-    // Detectar idioma desde header Accept-Language del dispositivo
     const acceptLanguage = req.headers['accept-language'] || '';
     const detectedLang = acceptLanguage.split(',')[0]?.split('-')[0]?.toLowerCase() || 'en';
     const lang = LANGUAGE_NAMES[detectedLang] ? detectedLang : (language || 'en');
@@ -175,10 +174,12 @@ The "isEpic" field is true only for the extremely difficult question.`;
     const rawText = content.text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     const parsed = JSON.parse(rawText);
 
+    const epicBase = isActuallyFree ? 1 : (entryFee || 1);
+    const epicPrizeAmount = Math.round(epicBase * EPIC_QUESTION_MULTIPLIER * 100) / 100;
+
     if (hasEpicQuestion && parsed.questions[epicQuestionIndex]) {
       parsed.questions[epicQuestionIndex].isEpic = true;
-      const epicBase = isActuallyFree ? 1 : (entryFee || 1);
-      parsed.questions[epicQuestionIndex].epicPrize = Math.round(epicBase * EPIC_QUESTION_MULTIPLIER * 100) / 100;
+      parsed.questions[epicQuestionIndex].epicPrize = epicPrizeAmount;
     }
 
     const sessionRef = db.collection('games').doc();
@@ -191,6 +192,7 @@ The "isEpic" field is true only for the extremely difficult question.`;
       questions: parsed.questions,
       epicQuestionIndex,
       hasEpicQuestion,
+      epicPrizeAmount,
       status: 'active',
       startedAt: new Date()
     });
@@ -250,7 +252,8 @@ router.post('/submit', async (req, res) => {
     if (data.hasEpicQuestion && data.epicQuestionIndex >= 0) {
       const epicAnswer = verifiedAnswers[data.epicQuestionIndex];
       if (epicAnswer?.isCorrect) {
-        epicPrize = questions[data.epicQuestionIndex]?.epicPrize || 0;
+        const epicBase = data.entryFee || 1;
+        epicPrize = data.epicPrizeAmount || Math.round(epicBase * EPIC_QUESTION_MULTIPLIER * 100) / 100;
       }
     }
 
